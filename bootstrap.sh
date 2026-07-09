@@ -23,6 +23,45 @@ if ! have apt-get; then
 fi
 
 # ---------------------------------------------------------------------------
+log "Configuring git globals"
+git config --global user.email "danilo.martins@evalueserve.com"
+git config --global user.name "Danilo Martins"
+
+# ---------------------------------------------------------------------------
+log "Setting up SSH key for GitHub"
+SSH_KEY="$HOME/.ssh/id_rsa"
+if [ ! -f "$SSH_KEY" ]; then
+  printf 'Enter your email address for the SSH key: '
+  read -r GIT_EMAIL
+  if [ -z "$GIT_EMAIL" ]; then
+    echo "Email cannot be empty. Aborting." >&2
+    exit 1
+  fi
+  mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+  ssh-keygen -t rsa -b 4096 -C "$GIT_EMAIL" -f "$SSH_KEY" -N ""
+  chmod 600 "$SSH_KEY"
+  chmod 644 "$SSH_KEY.pub"
+  eval "$(ssh-agent -s)" >/dev/null
+  ssh-add "$SSH_KEY" >/dev/null 2>&1 || true
+  echo
+  log "Your new SSH public key:"
+  echo
+  cat "$SSH_KEY.pub"
+  echo
+  log "Add the key above to https://github.com/settings/keys before continuing."
+  printf 'Press ENTER once the key has been added to GitHub... '
+  read -r _
+  log "Verifying GitHub SSH connection..."
+  if ssh -o StrictHostKeyChecking=no -T git@github.com 2>&1 | grep -q "successfully authenticated"; then
+    log "GitHub SSH authentication confirmed."
+  else
+    warn "Could not verify GitHub SSH connection. Proceeding anyway — check manually if clone steps fail."
+  fi
+else
+  log "SSH key already exists at $SSH_KEY, skipping generation"
+fi
+
+# ---------------------------------------------------------------------------
 log "Updating apt and installing base packages"
 sudo apt-get update -y
 sudo apt-get install -y \
@@ -42,12 +81,15 @@ if ! grep -rq deadsnakes /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/n
   sudo add-apt-repository -y ppa:deadsnakes/ppa
   sudo apt-get update -y
 fi
-sudo apt-get install -y python3.14 python3.14-venv python3.14-dev
+sudo apt-get install -y python3.14 python3.14-venv python3.14-dev python3-pip python3-venv
 
 log "Installing uv (provides ~/.local/bin/env sourced by dotfiles zshrc)"
 if [ ! -f "$HOME/.local/bin/env" ]; then
   curl -fsSL https://astral.sh/uv/install.sh | sh
 fi
+
+log "Installing pynvim (Python neovim client)"
+sudo apt-get install -y python3-pynvim
 
 # ---------------------------------------------------------------------------
 log "Installing Homebrew (linuxbrew, referenced in dotfiles zshrc)"
@@ -91,6 +133,9 @@ else
   log "~/.config/nvim already a git repo, skipping clone"
 fi
 
+log "Installing neovim plugins via lazy.nvim (headless)"
+nvim --headless "+Lazy! sync" +qa 2>/dev/null || warn "lazy.nvim sync returned non-zero, open nvim manually to check"
+
 # ---------------------------------------------------------------------------
 log "Installing Starship prompt"
 if ! have starship; then
@@ -113,10 +158,28 @@ fi
 # ---------------------------------------------------------------------------
 log "Installing Claude Code CLI"
 if have npm; then
-  npm install -g @anthropic-ai/claude-code
+  npm install -g @anthropic-ai/claude-code neovim
 else
   warn "npm not found, skipping Claude Code CLI install"
 fi
+
+# ---------------------------------------------------------------------------
+log "Installing tree-sitter-cli (neovim dependency)"
+if have npm; then
+  npm install -g tree-sitter-cli
+else
+  warn "npm not found, skipping tree-sitter-cli install"
+fi
+
+# ---------------------------------------------------------------------------
+log "Installing Rust + Cargo (required by blink-cmp-fuzzy for neovim)"
+if ! have cargo; then
+  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  . "$HOME/.cargo/env"
+else
+  log "Cargo already installed, skipping"
+fi
+export PATH="$HOME/.cargo/bin:$PATH"
 
 # ---------------------------------------------------------------------------
 log "Installing zoxide"
@@ -189,25 +252,6 @@ if [ "$SHELL" != "$ZSH_PATH" ]; then
     echo "$ZSH_PATH" | sudo tee -a /etc/shells >/dev/null
   fi
   sudo chsh -s "$ZSH_PATH" "$USER"
-fi
-
-# ---------------------------------------------------------------------------
-log "Generating SSH key for GitHub"
-SSH_KEY="$HOME/.ssh/id_ed25519"
-if [ ! -f "$SSH_KEY" ]; then
-  mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-  ssh-keygen -t ed25519 -C "$USER@$(hostname)" -f "$SSH_KEY" -N ""
-  chmod 600 "$SSH_KEY"
-  chmod 644 "$SSH_KEY.pub"
-  eval "$(ssh-agent -s)" >/dev/null
-  ssh-add "$SSH_KEY" >/dev/null 2>&1 || true
-  echo
-  log "New SSH public key (add this to https://github.com/settings/keys):"
-  echo
-  cat "$SSH_KEY.pub"
-  echo
-else
-  log "SSH key already exists at $SSH_KEY, skipping generation"
 fi
 
 # ---------------------------------------------------------------------------
