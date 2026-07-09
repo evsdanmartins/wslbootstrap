@@ -37,6 +37,19 @@ if have fdfind && ! have fd; then
 fi
 
 # ---------------------------------------------------------------------------
+log "Adding deadsnakes PPA and installing Python 3.14"
+if ! grep -rq deadsnakes /etc/apt/sources.list /etc/apt/sources.list.d/ 2>/dev/null; then
+  sudo add-apt-repository -y ppa:deadsnakes/ppa
+  sudo apt-get update -y
+fi
+sudo apt-get install -y python3.14 python3.14-venv python3.14-dev
+
+log "Installing uv (provides ~/.local/bin/env sourced by dotfiles zshrc)"
+if [ ! -f "$HOME/.local/bin/env" ]; then
+  curl -fsSL https://astral.sh/uv/install.sh | sh
+fi
+
+# ---------------------------------------------------------------------------
 log "Installing Homebrew (linuxbrew, referenced in dotfiles zshrc)"
 if ! have brew && [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
   NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
@@ -103,12 +116,6 @@ if have npm; then
   npm install -g @anthropic-ai/claude-code
 else
   warn "npm not found, skipping Claude Code CLI install"
-fi
-
-# ---------------------------------------------------------------------------
-log "Installing uv (provides ~/.local/bin/env sourced by dotfiles zshrc)"
-if [ ! -f "$HOME/.local/bin/env" ]; then
-  curl -fsSL https://astral.sh/uv/install.sh | sh
 fi
 
 # ---------------------------------------------------------------------------
@@ -207,3 +214,5 @@ fi
 log "Done. Log out/in (or run 'exec zsh') to start zsh."
 log "First zsh launch will auto-clone zinit and its plugins (see ~/.zshrc)."
 log "Open nvim once to let lazy.nvim (kickstart) install plugins: nvim +Lazy"
+log "login into az cli and connect to cluster"
+log "az aks get-credentials --resource-group UnderwriterDashboard_RG --name CBRQSUDAKSEUS"

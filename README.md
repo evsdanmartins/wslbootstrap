@@ -13,6 +13,7 @@ supporting tooling both depend on.
 | build-essential, git, curl, unzip, wget | base toolchain |
 | zsh, tmux | shell + terminal multiplexer |
 | ripgrep, fd | used by Neovim (Telescope) |
+| deadsnakes PPA + Python 3.14 (`python3.14`, `-venv`, `-dev`) | latest Python, side-by-side with system Python |
 | Homebrew (linuxbrew) | referenced via `brew shellenv` in `.zshrc`; also used to install formulae below |
 | Homebrew formulae: fzf, k9s, lazygit, libuv, lpeg, luajit, luv, ncurses, neovim, tree-sitter, unibilium, utf8proc, yamlfmt | editor + CLI tooling |
 | Homebrew cask: copilot-cli | GitHub Copilot CLI |
@@ -66,8 +67,8 @@ The script is idempotent — re-run it any time, it skips anything already insta
 ## Notes / not included
 
 Left out because they're either optional, commented out in the dotfiles, or a no-op without
-extra config: `kubectl`, Rust/cargo, `asdf`, opencode. Adding any of these is a small addition
-to `bootstrap.sh` if you need them later.
+extra config: Rust/cargo, `asdf`, opencode. Adding any of these is a small addition to
+`bootstrap.sh` if you need them later.
 
 ## Troubleshooting
 
