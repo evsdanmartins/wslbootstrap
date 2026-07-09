@@ -54,6 +54,13 @@ tmux                      # if plugins didn't pull automatically:
                           #   press prefix (C-s) then I to force-install TPM plugins
 ```
 
+At the end, if no `~/.ssh/id_ed25519` key exists yet, the script generates one and prints the
+**public** key to the terminal — copy it into
+[github.com/settings/keys](https://github.com/settings/keys). The private key never leaves the
+machine or gets printed. If you already have a key you want to keep, transfer it to
+`~/.ssh/id_ed25519` *before* running the script (e.g. via a password manager or `scp` from your
+old machine) and generation is skipped.
+
 The script is idempotent — re-run it any time, it skips anything already installed.
 
 ## Notes / not included

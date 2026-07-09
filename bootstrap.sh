@@ -185,6 +185,25 @@ if [ "$SHELL" != "$ZSH_PATH" ]; then
 fi
 
 # ---------------------------------------------------------------------------
+log "Generating SSH key for GitHub"
+SSH_KEY="$HOME/.ssh/id_ed25519"
+if [ ! -f "$SSH_KEY" ]; then
+  mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+  ssh-keygen -t ed25519 -C "$USER@$(hostname)" -f "$SSH_KEY" -N ""
+  chmod 600 "$SSH_KEY"
+  chmod 644 "$SSH_KEY.pub"
+  eval "$(ssh-agent -s)" >/dev/null
+  ssh-add "$SSH_KEY" >/dev/null 2>&1 || true
+  echo
+  log "New SSH public key (add this to https://github.com/settings/keys):"
+  echo
+  cat "$SSH_KEY.pub"
+  echo
+else
+  log "SSH key already exists at $SSH_KEY, skipping generation"
+fi
+
+# ---------------------------------------------------------------------------
 log "Done. Log out/in (or run 'exec zsh') to start zsh."
 log "First zsh launch will auto-clone zinit and its plugins (see ~/.zshrc)."
 log "Open nvim once to let lazy.nvim (kickstart) install plugins: nvim +Lazy"
