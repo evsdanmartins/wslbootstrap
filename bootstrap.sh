@@ -11,7 +11,6 @@ set -euo pipefail
 
 DOTFILES_REPO="https://github.com/evsdanmartins/dotfiles.git"
 NVIM_CONFIG_REPO="https://github.com/evsdanmartins/kickstart.nvim.git"
-NVIM_VERSION="v0.10.2"
 NERD_FONT="JetBrainsMono"
 
 log()  { printf '\033[1;34m==>\033[0m %s\n' "$*"; }
@@ -38,24 +37,25 @@ if have fdfind && ! have fd; then
 fi
 
 # ---------------------------------------------------------------------------
-log "Installing Neovim ${NVIM_VERSION} to /opt/nvim (matches PATH in dotfiles zshrc)"
-if [ ! -x /opt/nvim/bin/nvim ] || ! /opt/nvim/bin/nvim --version | head -1 | grep -q "${NVIM_VERSION#v}"; then
-  ARCH="$(uname -m)"
-  case "$ARCH" in
-    x86_64)  NVIM_TARBALL="nvim-linux-x86_64.tar.gz" ;;
-    aarch64) NVIM_TARBALL="nvim-linux-arm64.tar.gz" ;;
-    *) echo "Unsupported arch for nvim prebuilt binary: $ARCH" >&2; exit 1 ;;
-  esac
-  TMP_TGZ="$(mktemp)"
-  curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/${NVIM_TARBALL}" -o "$TMP_TGZ"
-  sudo rm -rf /opt/nvim
-  sudo mkdir -p /opt/nvim
-  sudo tar -xzf "$TMP_TGZ" -C /opt/nvim --strip-components=1
-  rm -f "$TMP_TGZ"
-else
-  log "Neovim already up to date, skipping"
+log "Installing Homebrew (linuxbrew, referenced in dotfiles zshrc)"
+if ! have brew && [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 fi
-export PATH="$PATH:/opt/nvim/bin"
+if [ -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
+  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+fi
+
+# ---------------------------------------------------------------------------
+log "Installing Homebrew formulae"
+if ! have brew; then
+  echo "brew not found on PATH, cannot install formulae. Aborting." >&2
+  exit 1
+fi
+BREW_FORMULAE=(fzf k9s lazygit libuv lpeg luajit luv ncurses neovim tree-sitter unibilium utf8proc yamlfmt)
+brew install "${BREW_FORMULAE[@]}"
+
+log "Installing Homebrew casks"
+brew install --cask copilot-cli
 
 # ---------------------------------------------------------------------------
 log "Installing chezmoi"
@@ -85,12 +85,6 @@ if ! have starship; then
 fi
 
 # ---------------------------------------------------------------------------
-log "Installing Homebrew (linuxbrew, referenced in dotfiles zshrc)"
-if ! have brew && [ ! -x /home/linuxbrew/.linuxbrew/bin/brew ]; then
-  NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
-
-# ---------------------------------------------------------------------------
 log "Installing nvm + latest LTS Node.js"
 export NVM_DIR="$HOME/.nvm"
 if [ ! -d "$NVM_DIR" ]; then
@@ -104,6 +98,14 @@ if have nvm; then
 fi
 
 # ---------------------------------------------------------------------------
+log "Installing Claude Code CLI"
+if have npm; then
+  npm install -g @anthropic-ai/claude-code
+else
+  warn "npm not found, skipping Claude Code CLI install"
+fi
+
+# ---------------------------------------------------------------------------
 log "Installing uv (provides ~/.local/bin/env sourced by dotfiles zshrc)"
 if [ ! -f "$HOME/.local/bin/env" ]; then
   curl -fsSL https://astral.sh/uv/install.sh | sh
@@ -113,25 +115,6 @@ fi
 log "Installing zoxide"
 if ! have zoxide; then
   curl -fsSL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | bash
-fi
-
-# ---------------------------------------------------------------------------
-log "Installing fzf"
-if [ ! -d "$HOME/.fzf" ]; then
-  git clone --depth 1 https://github.com/junegunn/fzf.git "$HOME/.fzf"
-  "$HOME/.fzf/install" --key-bindings --completion --no-update-rc --no-bash --no-fish
-fi
-
-# ---------------------------------------------------------------------------
-log "Installing lazygit (handy with nvim/tmux workflow)"
-if ! have lazygit; then
-  LG_VERSION="$(curl -fsSL https://api.github.com/repos/jesseduffield/lazygit/releases/latest | grep -Po '"tag_name": *"v\K[^"]*')"
-  LG_ARCH="$(uname -m)"; [ "$LG_ARCH" = "aarch64" ] && LG_ARCH="arm64" || LG_ARCH="x86_64"
-  TMP_TAR="$(mktemp -d)"
-  curl -fsSL "https://github.com/jesseduffield/lazygit/releases/latest/download/lazygit_${LG_VERSION}_Linux_${LG_ARCH}.tar.gz" -o "$TMP_TAR/lazygit.tar.gz"
-  tar -xzf "$TMP_TAR/lazygit.tar.gz" -C "$TMP_TAR" lazygit
-  sudo install "$TMP_TAR/lazygit" /usr/local/bin
-  rm -rf "$TMP_TAR"
 fi
 
 # ---------------------------------------------------------------------------
@@ -151,6 +134,44 @@ if [ ! -d "$FONT_DIR" ]; then
   unzip -oq "$TMP_FONT/font.zip" -d "$FONT_DIR"
   rm -rf "$TMP_FONT"
   fc-cache -f "$FONT_DIR" >/dev/null 2>&1 || true
+fi
+
+# ---------------------------------------------------------------------------
+log "Installing Docker Engine"
+if ! have docker; then
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  sudo chmod a+r /etc/apt/keyrings/docker.gpg
+  echo \
+    "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+    $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+    sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+  sudo apt-get update -y
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+else
+  log "Docker already installed, skipping"
+fi
+
+log "Adding $USER to docker group (run docker without sudo)"
+if ! getent group docker >/dev/null; then
+  sudo groupadd docker
+fi
+if ! id -nG "$USER" | grep -qw docker; then
+  sudo usermod -aG docker "$USER"
+  warn "Added $USER to docker group. Log out/in (or 'newgrp docker') for it to take effect."
+fi
+
+# ---------------------------------------------------------------------------
+log "Installing Azure CLI"
+if ! have az; then
+  curl -fsSL https://aka.ms/InstallAzureCLIDeb | sudo bash
+fi
+
+log "Installing AKS CLI plugin (kubectl + kubelogin via az aks install-cli)"
+if ! have kubectl; then
+  sudo az aks install-cli
+else
+  log "kubectl already present, skipping az aks install-cli"
 fi
 
 # ---------------------------------------------------------------------------
