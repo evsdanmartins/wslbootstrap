@@ -1,36 +1,46 @@
 # systemsetup
 
-Bootstrap script for a fresh Debian/Ubuntu box: zsh + [Starship](https://starship.rs/) prompt,
-dotfiles from [evsdanmartins/dotfiles](https://github.com/evsdanmartins/dotfiles) (applied via
-[chezmoi](https://www.chezmoi.io/)), Neovim config from
-[evsdanmartins/kickstart.nvim](https://github.com/evsdanmartins/kickstart.nvim), and the
-supporting tooling both depend on.
+Bootstrap scripts for a fresh Debian/Ubuntu box: zsh + [Starship](https://starship.rs/) prompt,
+Neovim, and the supporting tooling both depend on. Two variants are provided:
+
+- **`bootstrap.sh`** — the personal version. Applies dotfiles from
+  [evsdanmartins/dotfiles](https://github.com/evsdanmartins/dotfiles) (via
+  [chezmoi](https://www.chezmoi.io/)) and a Neovim config from
+  [evsdanmartins/kickstart.nvim](https://github.com/evsdanmartins/kickstart.nvim), and hardcodes
+  git identity.
+- **`bootstrap-generic.sh`** — a repo-agnostic version anyone can run as-is. No dotfiles/chezmoi
+  step, prompts for git `user.name`/`user.email` instead of hardcoding them, and uses the
+  upstream [nvim-lua/kickstart.nvim](https://github.com/nvim-lua/kickstart.nvim) as the Neovim
+  config (cloned, then its `.git` is removed since it's just a starting point, not a repo to
+  track).
 
 ## What it installs
 
-| Tool | Why |
-|---|---|
-| build-essential, git, curl, unzip, wget | base toolchain |
-| zsh, tmux | shell + terminal multiplexer |
-| ripgrep, fd | used by Neovim (Telescope) |
-| deadsnakes PPA + Python 3.14 (`python3.14`, `-venv`, `-dev`) | latest Python, side-by-side with system Python |
-| Homebrew (linuxbrew) | referenced via `brew shellenv` in `.zshrc`; also used to install formulae below |
-| Homebrew formulae: fzf, k9s, lazygit, libuv, lpeg, luajit, luv, ncurses, neovim, tree-sitter, unibilium, utf8proc, yamlfmt | editor + CLI tooling |
-| Homebrew cask: copilot-cli | GitHub Copilot CLI |
-| chezmoi | applies the dotfiles repo |
-| kickstart.nvim | cloned to `~/.config/nvim` |
-| Starship | shell prompt |
-| nvm + Node LTS | JS tooling |
-| Claude Code CLI (`npm i -g @anthropic-ai/claude-code`) | `claude` command |
-| uv | provides `~/.local/bin/env` sourced by `.zshrc` |
-| zoxide | smarter `cd`, used by dotfiles zsh functions |
-| TPM + tmux plugins | plugins listed in `.tmux.conf` (dracula, tilish, resurrect, ...) |
-| JetBrainsMono Nerd Font | glyphs for Starship / tmux dracula theme |
-| Docker Engine (official apt repo) | container runtime; `$USER` added to `docker` group so `docker` runs without `sudo` |
-| Azure CLI (`az`) + AKS plugin (`az aks install-cli`) | Azure/AKS management; installs `kubectl` + `kubelogin` |
+| Tool | Why | Script |
+|---|---|---|
+| build-essential, git, curl, unzip, wget | base toolchain | both |
+| zsh, tmux | shell + terminal multiplexer | both |
+| ripgrep, fd | used by Neovim (Telescope) | both |
+| deadsnakes PPA + Python 3.14 (`python3.14`, `-venv`, `-dev`) | latest Python, side-by-side with system Python | both |
+| Homebrew (linuxbrew) | referenced via `brew shellenv` in `.zshrc`; also used to install formulae below | both |
+| Homebrew formulae: fzf, k9s, lazydocker, lazygit, libuv, lpeg, luajit, luv, ncurses, neovim, tree-sitter, unibilium, utf8proc, yamlfmt | editor + CLI tooling | both |
+| Homebrew cask: copilot-cli | GitHub Copilot CLI | both |
+| chezmoi + evsdanmartins/dotfiles | applies personal dotfiles | `bootstrap.sh` only |
+| evsdanmartins/kickstart.nvim | personal Neovim config, cloned to `~/.config/nvim` | `bootstrap.sh` only |
+| nvim-lua/kickstart.nvim | upstream Neovim config, cloned to `~/.config/nvim` (`.git` stripped after clone) | `bootstrap-generic.sh` only |
+| tree-sitter-cli (npm) | kickstart.nvim dependency | `bootstrap-generic.sh` only (bundled with dotfiles in `bootstrap.sh`) |
+| Starship | shell prompt | both |
+| nvm + Node LTS | JS tooling | both |
+| Claude Code CLI (`npm i -g @anthropic-ai/claude-code`) | `claude` command | both |
+| uv | provides `~/.local/bin/env` sourced by `.zshrc` | both |
+| zoxide | smarter `cd`, used by dotfiles zsh functions | both |
+| TPM + tmux plugins | plugins listed in `.tmux.conf` (dracula, tilish, resurrect, ...) | both |
+| JetBrainsMono Nerd Font | glyphs for Starship / tmux dracula theme | both |
+| Docker Engine (official apt repo) | container runtime; `$USER` added to `docker` group so `docker` runs without `sudo` | both |
+| Azure CLI (`az`) + AKS plugin (`az aks install-cli`) | Azure/AKS management; installs `kubectl` + `kubelogin` | both |
 
 zinit (the zsh plugin manager) is **not** installed by this script — your `.zshrc` bootstraps it
-itself on first zsh launch.
+itself on first zsh launch (personal dotfiles only; not applicable to `bootstrap-generic.sh`).
 
 ## Requirements
 
@@ -41,9 +51,11 @@ itself on first zsh launch.
 ## Usage
 
 ```bash
-git clone <this-repo-url> systemsetup   # or copy bootstrap.sh over
+git clone <this-repo-url> systemsetup   # or copy the script over
 cd systemsetup
-./bootstrap.sh
+./bootstrap.sh            # personal version (dotfiles + personal nvim config)
+# or
+./bootstrap-generic.sh    # generic version (prompts for git identity, upstream kickstart.nvim)
 ```
 
 Then:
@@ -55,20 +67,23 @@ tmux                      # if plugins didn't pull automatically:
                           #   press prefix (C-s) then I to force-install TPM plugins
 ```
 
-At the end, if no `~/.ssh/id_ed25519` key exists yet, the script generates one and prints the
+`bootstrap-generic.sh` prompts for your git `user.name`/`user.email` on first run (skipped if
+already set globally). `bootstrap.sh` hardcodes them instead.
+
+At the end, if no SSH key exists yet, the script generates one and prints the
 **public** key to the terminal — copy it into
 [github.com/settings/keys](https://github.com/settings/keys). The private key never leaves the
 machine or gets printed. If you already have a key you want to keep, transfer it to
-`~/.ssh/id_ed25519` *before* running the script (e.g. via a password manager or `scp` from your
+`~/.ssh/id_rsa` *before* running the script (e.g. via a password manager or `scp` from your
 old machine) and generation is skipped.
 
-The script is idempotent — re-run it any time, it skips anything already installed.
+Both scripts are idempotent — re-run either any time, it skips anything already installed.
 
 ## Notes / not included
 
 Left out because they're either optional, commented out in the dotfiles, or a no-op without
-extra config: Rust/cargo, `asdf`, opencode. Adding any of these is a small addition to
-`bootstrap.sh` if you need them later.
+extra config: Rust/cargo, `asdf`, opencode. Adding any of these is a small addition to either
+script if you need them later.
 
 ## Troubleshooting
 

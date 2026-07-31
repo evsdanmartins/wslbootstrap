@@ -4,7 +4,7 @@
 #
 # Target: Debian/Ubuntu (apt). Idempotent - safe to re-run.
 #
-# Usage: ./bootstrap_lite.sh
+# Usage: ./bootstrap-generic.sh
 
 set -euo pipefail
 
