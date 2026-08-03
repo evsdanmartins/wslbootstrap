@@ -247,7 +247,7 @@ fi
 # ---------------------------------------------------------------------------
 log "Installing Microsoft ODBC Driver for SQL Server"
 if ! dpkg -s msodbcsql18 >/dev/null 2>&1; then
-  curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo tee /etc/apt/trusted.gpg.d/microsoft.asc >/dev/null
+  curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
   curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
   sudo apt-get update -y
   sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
