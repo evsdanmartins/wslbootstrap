@@ -233,8 +233,13 @@ fi
 log "Installing Microsoft ODBC Driver for SQL Server"
 if ! dpkg -s msodbcsql18 >/dev/null 2>&1; then
   curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg
-  curl -fsSL "https://packages.microsoft.com/config/ubuntu/$(. /etc/os-release && echo "$VERSION_ID")/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
-  sudo apt-get update -y
+  UBUNTU_VER="$(. /etc/os-release && echo "$VERSION_ID")"
+  curl -fsSL "https://packages.microsoft.com/config/ubuntu/${UBUNTU_VER}/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
+  if ! sudo apt-get update -y; then
+    warn "Microsoft repo for Ubuntu ${UBUNTU_VER} isn't published yet, falling back to 24.04 packages"
+    curl -fsSL "https://packages.microsoft.com/config/ubuntu/24.04/prod.list" | sudo tee /etc/apt/sources.list.d/mssql-release.list >/dev/null
+    sudo apt-get update -y
+  fi
   sudo ACCEPT_EULA=Y apt-get install -y msodbcsql18
 else
   log "msodbcsql18 already installed, skipping"
